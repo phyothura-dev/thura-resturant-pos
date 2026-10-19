@@ -1,48 +1,43 @@
-import { useEffect, useState, useMemo } from 'react';
-import { supabase } from '../services/supabase';
-import { Card, CardContent } from '../components/ui/Card';
-import { Loader2, DollarSign, ShoppingCart, Users, TrendingUp, FileText, ArrowUpRight } from 'lucide-react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { pb } from '../services/pocketbase';
+import { Card } from '../components/ui/Card';
+import { Loader2, DollarSign, ShoppingCart, TrendingUp, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { formatDate, formatTime } from '@/utils/format';
 import { Badge } from '@/components/ui/Badge';
 
 export default function Reports() {
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: sales = [], isLoading: loading } = useQuery({
+    queryKey: ['sales'],
+    queryFn: async () => {
+      const records = await pb.collection('sales').getFullList({
+        sort: '-created',
+        expand: 'sale_items_via_sale.product',
+      });
 
-  useEffect(() => {
-    fetchSales();
-  }, []);
-
-  const fetchSales = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('sales')
-      .select(
-        `
-        *,
-        sale_items (
-          product_id,
-          quantity,
-          products (
-            name,
-            price
-          )
-        )
-      `,
-      )
-      .order('created_at', { ascending: false });
-
-    if (!error) setSales(data || []);
-    setLoading(false);
-  };
+      return records.map((s) => ({
+        ...s,
+        created_at: s.created,
+        sale_items: (s.expand?.sale_items_via_sale || []).map((si) => ({
+          quantity: si.quantity,
+          products: si.expand?.product
+            ? {
+                name: si.expand.product.name,
+                price: si.expand.product.price,
+              }
+            : null,
+        })),
+      }));
+    },
+  });
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todaysSales = sales.filter((s) => s.created_at.startsWith(today));
+    const todaysSales = sales.filter((s) => s.created_at && s.created_at.startsWith(today));
 
-    const dailyTotal = todaysSales.reduce((sum, s) => sum + s.total_amount, 0);
+    const dailyTotal = todaysSales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
     const orderCount = todaysSales.length;
     const avgSale = orderCount > 0 ? dailyTotal / orderCount : 0;
 
@@ -63,8 +58,8 @@ export default function Reports() {
       .reverse();
 
     return last7Days.map((date) => {
-      const daySales = sales.filter((s) => s.created_at.startsWith(date));
-      const total = daySales.reduce((sum, s) => sum + s.total_amount, 0);
+      const daySales = sales.filter((s) => s.created_at && s.created_at.startsWith(date));
+      const total = daySales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
       return {
         name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
         date: date,
@@ -83,20 +78,17 @@ export default function Reports() {
 
   return (
     <div className="space-y-8 pb-10">
-      <div className="">
-        <h1 className="text-2xl font-bold text-gray-900">
-          အစီရင်ခံစာ</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">အစီရင်ခံစာ</h1>
         <p className="text-sm text-gray-500 mt-1">ရောင်းအားနှင့် စွမ်းဆောင်ရည် ခြုံငုံသုံးသပ်ချက်</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 lg:grid-cols-3">
         <StatCard title="ယနေ့ရောင်းအား" value={`${stats.dailyTotal.toLocaleString()} ကျပ်`} icon={<DollarSign className="h-5 w-5" />} />
         <StatCard title="အော်ဒါအရေအတွက်" value={`${stats.orderCount} ခု`} icon={<ShoppingCart className="h-5 w-5" />} />
         <StatCard title="ပျမ်းမျှ ငွေပမာဏ" value={`${Math.round(stats.avgSale).toLocaleString()} ကျပ်`} icon={<TrendingUp className="h-5 w-5" />} />
       </div>
 
-      {/* Sales Chart */}
       <Card className="p-6 border-gray-100 shadow-sm">
         <div className="mb-6">
           <h2 className="text-lg font-bold text-gray-900">နေ့စဉ် ရောင်းအား</h2>
@@ -115,7 +107,6 @@ export default function Reports() {
         </div>
       </Card>
 
-      {/* Sales Table */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 px-1">
           <FileText className="h-5 w-5 text-gray-700" />
@@ -138,7 +129,7 @@ export default function Reports() {
               {sales.map((sale) => (
                 <TableRow key={sale.id} className="hover:bg-gray-50/30">
                   <TableCell className="font-medium text-gray-900 py-4">{formatDate(sale.created_at)}</TableCell>
-                  <TableCell className="text-gray-500 py-4">{formatTime(sale.created_at)} မိနစ်</TableCell>
+                  <TableCell className="text-gray-500 py-4">{formatTime(sale.created_at)}</TableCell>
                   <TableCell className="text-gray-500 py-4">#{sale.id.toString().slice(-6)}</TableCell>
                   <TableCell className="py-4">
                     <Badge variant={sale.payment_method === 'cash' ? 'default' : 'warning'}>{sale.payment_method === 'cash' ? 'ငွေသား' : 'ဒစ်ဂျစ်တယ်'}</Badge>
@@ -152,12 +143,12 @@ export default function Reports() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-bold text-gray-900 py-4">{sale.total_amount.toLocaleString()} ကျပ်</TableCell>
+                  <TableCell className="text-right font-bold text-gray-900 py-4">{(sale.total_amount || 0).toLocaleString()} ကျပ်</TableCell>
                 </TableRow>
               ))}
               {sales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-gray-500">
+                  <TableCell colSpan={6} className="h-32 text-center text-gray-500">
                     အရောင်းစာရင်းမရှိသေးပါ
                   </TableCell>
                 </TableRow>

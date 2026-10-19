@@ -1,42 +1,67 @@
-import { supabase } from './supabase';
+import { pb } from './pocketbase';
 
 export async function upsertSaleItems(saleId, items) {
-  for (const item of items) {
-    const { data: existing, error } = await supabase.from('sale_items').select('id').eq('sale_id', saleId).eq('product_id', item.id).maybeSingle();
-
-    if (error) throw new Error('Could not check existing sale items');
-
-    if (existing) {
-      const { error } = await supabase.from('sale_items').update({ quantity: item.quantity }).eq('id', existing.id);
-
-      if (error) throw new Error('Sale item could not be updated');
-    } else {
-      const { error } = await supabase.from('sale_items').insert([
-        {
-          sale_id: saleId,
-          product_id: item.id,
-          quantity: item.quantity,
-        },
-      ]);
-
-      if (error) throw new Error('Sale item could not be added');
+  try {
+    // Fetch all existing sale items for this sale
+    let existingList = [];
+    try {
+      existingList = await pb.collection('sale_items').getFullList({
+        filter: `sale = "${saleId}"`,
+      });
+    } catch {
+      existingList = [];
     }
+
+    const currentProductIds = new Set(items.map((i) => i.id));
+
+    // Delete items that were removed from the cart
+    for (const ex of existingList) {
+      if (!currentProductIds.has(ex.product)) {
+        await pb.collection('sale_items').delete(ex.id);
+      }
+    }
+
+    // Upsert items
+    for (const item of items) {
+      const existing = existingList.find((ex) => ex.product === item.id);
+      if (existing) {
+        await pb.collection('sale_items').update(existing.id, {
+          quantity: item.quantity,
+          notes: item.notes || '',
+        });
+      } else {
+        await pb.collection('sale_items').create({
+          sale: saleId,
+          product: item.id,
+          quantity: item.quantity,
+          notes: item.notes || '',
+        });
+      }
+    }
+  } catch (error) {
+    throw new Error('Sale items could not be updated: ' + error.message);
   }
 }
 
 export async function insertSaleItems(saleId, items) {
-  const rows = items.map((item) => ({
-    sale_id: saleId,
-    product_id: item.id,
-    quantity: item.quantity,
-  }));
-
-  const { error } = await supabase.from('sale_items').insert(rows);
-  if (error) throw new Error('Sale items could not be created');
+  try {
+    for (const item of items) {
+      await pb.collection('sale_items').create({
+        sale: saleId,
+        product: item.id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+      });
+    }
+  } catch (error) {
+    throw new Error('Sale items could not be created: ' + error.message);
+  }
 }
 
 export async function deleteSaleItem(saleItemId) {
-  const { error } = await supabase.from('sale_items').delete().eq('id', saleItemId);
-
-  if (error) throw new Error('Sale item could not be removed');
+  try {
+    await pb.collection('sale_items').delete(saleItemId);
+  } catch (error) {
+    throw new Error('Sale item could not be removed: ' + error.message);
+  }
 }

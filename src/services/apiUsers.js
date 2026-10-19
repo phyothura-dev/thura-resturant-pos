@@ -1,57 +1,57 @@
-import { createClient } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { pb } from './pocketbase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+function formatUser(u) {
+  return {
+    ...u,
+    full_name: u.name || '',
+    role: u.role || 'staff',
+  };
+}
 
 export async function getUsers() {
-  const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error('Users could not be loaded');
+  try {
+    const data = await pb.collection('users').getFullList({
+      sort: '-created',
+    });
+    return data.map(formatUser);
+  } catch (error) {
+    throw new Error('Users could not be loaded: ' + error.message);
   }
-
-  return data;
 }
 
 export async function createUser({ full_name, email, password, role }) {
-  const tempSupabase = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      persistSession: false,
-    },
-  });
-
-  const { data, error } = await tempSupabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name,
-        role,
-      },
-    },
-  });
-
-  if (error) throw new Error(error.message);
-  return data;
+  try {
+    const data = await pb.collection('users').create({
+      name: full_name,
+      email,
+      password,
+      passwordConfirm: password,
+      role: role || 'staff',
+      emailVisibility: true,
+    });
+    return formatUser(data);
+  } catch (error) {
+    throw new Error(error.message);
+  }
 }
 
-export async function updateUser({ id, ...updatedUser }) {
-  const { data, error } = await supabase.from('users').update(updatedUser).eq('id', id).select();
-
-  if (error) {
-    throw new Error('User could not be updated');
+export async function updateUser({ id, full_name, role }) {
+  try {
+    const data = await pb.collection('users').update(id, {
+      name: full_name,
+      role: role || 'staff',
+    });
+    return formatUser(data);
+  } catch (error) {
+    throw new Error('User could not be updated: ' + error.message);
   }
-
-  return data;
 }
 
 export async function deleteUser(id) {
-  const { data, error } = await supabase.from('users').delete().eq('id', id);
-
-  if (error) {
-    throw new Error('User could not be deleted');
+  try {
+    const data = await pb.collection('users').delete(id);
+    return data;
+  } catch (error) {
+    throw new Error('User could not be deleted: ' + error.message);
   }
-
-  return data;
 }

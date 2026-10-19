@@ -1,41 +1,39 @@
-import { supabase } from './supabase';
+import { pb } from './pocketbase';
 
 export async function getCategories() {
-  const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
-
-  if (error) {
-    throw new Error('Categories could not be loaded');
+  try {
+    const data = await pb.collection('categories').getFullList({
+      sort: 'name',
+    });
+    return data;
+  } catch (error) {
+    throw new Error('Categories could not be loaded: ' + error.message);
   }
-
-  return data;
 }
 
 export async function createCategory(name) {
-  const { data, error } = await supabase.from('categories').insert([{ name }]).select();
-
-  if (error) {
-    throw new Error('Category could not be created');
+  try {
+    const data = await pb.collection('categories').create({ name });
+    return data;
+  } catch (error) {
+    throw new Error('Category could not be created: ' + error.message);
   }
-
-  return data;
 }
 
 export async function updateCategory({ id, name }) {
-  const { data, error } = await supabase.from('categories').update({ name }).eq('id', id).select();
-
-  if (error) {
-    throw new Error('Category could not be updated');
+  try {
+    const data = await pb.collection('categories').update(id, { name });
+    return data;
+  } catch (error) {
+    throw new Error('Category could not be updated: ' + error.message);
   }
-
-  return data;
 }
 
 export async function deleteCategory(id) {
-  const { data, error } = await supabase.from('categories').delete().eq('id', id);
-
-  if (error) {
-    throw new Error('Category could not be deleted');
+  try {
+    const data = await pb.collection('categories').delete(id);
+    return data;
+  } catch (error) {
+    throw new Error('Category could not be deleted: ' + error.message);
   }
-
-  return data;
 }

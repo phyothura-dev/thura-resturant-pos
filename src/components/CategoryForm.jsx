@@ -1,36 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 
 export default function CategoryForm({ categoryToEdit, onClose, onSave, isLoading }) {
-  const [categoryName, setCategoryName] = useState('');
+  const isEditing = Boolean(categoryToEdit?.id);
+  const [prevId, setPrevId] = useState(categoryToEdit?.id);
+  const [categoryName, setCategoryName] = useState(categoryToEdit?.name || '');
 
-  useEffect(() => {
-    if (categoryToEdit) {
-      setCategoryName(categoryToEdit.name);
-    } else {
-      setCategoryName('');
-    }
-  }, [categoryToEdit]);
+  if (prevId !== categoryToEdit?.id) {
+    setPrevId(categoryToEdit?.id);
+    setCategoryName(categoryToEdit?.name || '');
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!categoryName.trim()) return;
-    onSave(categoryName);
+    onSave(categoryName.trim());
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">အမျိုးအစား အမည်</label>
-        <Input required value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="ဥပမာ - အစားအစာ" disabled={isLoading} />
+        <label className="mb-1.5 block text-sm font-semibold text-gray-800">
+          အမျိုးအစား အမည် <span className="text-red-500">*</span>
+        </label>
+        <Input
+          required
+          value={categoryName}
+          onChange={(e) => setCategoryName(e.target.value)}
+          placeholder="ဥပမာ - အစားအစာ"
+          disabled={isLoading}
+          className="h-10 rounded-xl text-sm"
+        />
       </div>
-      <div className="flex justify-end gap-3 pt-4">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
+
+      <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+          className="rounded-xl h-10 px-4 text-xs font-bold"
+        >
           မလုပ်တော့ပါ
         </Button>
-        <Button type="submit" isLoading={isLoading} variant="primary">
-          သိမ်းဆည်းမည်
+        <Button
+          type="submit"
+          isLoading={isLoading}
+          className="rounded-xl h-10 px-5 text-xs font-bold shadow-xs"
+        >
+          {isEditing ? 'ပြင်မည်' : 'သိမ်းမည်'}
         </Button>
       </div>
     </form>

@@ -1,15 +1,23 @@
-import { supabase } from './supabase';
+import { pb } from './pocketbase';
 
 export async function getTables() {
-  const { data, error } = await supabase.from('tables').select('*').order('id', { ascending: true });
-
-  if (error) throw new Error('Tables could not be loaded');
-  return data;
+  try {
+    const data = await pb.collection('tables').getFullList({
+      sort: 'table_number',
+    });
+    return data;
+  } catch (error) {
+    throw new Error('Tables could not be loaded: ' + error.message);
+  }
 }
 
 export async function setTableOccupied(tableId, isOccupied) {
-  const { data, error } = await supabase.from('tables').update({ is_occupied: isOccupied }).eq('id', tableId).select().single();
-
-  if (error) throw new Error('Table status could not be updated');
-  return data;
+  try {
+    const data = await pb.collection('tables').update(tableId, {
+      is_occupied: isOccupied,
+    });
+    return data;
+  } catch (error) {
+    throw new Error('Table status could not be updated: ' + error.message);
+  }
 }
