@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { categorySchema } from '../schemas';
 
 export default function CategoryForm({ categoryToEdit, onClose, onSave, isLoading }) {
   const isEditing = Boolean(categoryToEdit?.id);
@@ -14,8 +15,9 @@ export default function CategoryForm({ categoryToEdit, onClose, onSave, isLoadin
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!categoryName.trim()) return;
-    onSave(categoryName.trim());
+    const parsed = categorySchema.safeParse({ name: categoryName });
+    if (!parsed.success) return;
+    onSave(parsed.data.name);
   };
 
   return (

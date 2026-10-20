@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
-import { Printer, CheckCircle2, ShoppingBag, Calendar, UtensilsCrossed } from 'lucide-react';
+import { Printer, CheckCircle2, ShoppingBag, Calendar } from 'lucide-react';
 import { APP_CONFIG } from '../config/constants';
 
 export default function InvoiceModal({ isOpen, onClose, sale }) {
-  const [printMode, setPrintMode] = useState('receipt'); // 'receipt' | 'kitchen'
-
   if (!sale) return null;
 
-  const handlePrint = (mode = 'receipt') => {
-    setPrintMode(mode);
+  const handlePrint = () => {
     setTimeout(() => {
       window.print();
     }, 100);
@@ -49,37 +46,6 @@ export default function InvoiceModal({ isOpen, onClose, sale }) {
           className="bg-white rounded-2xl p-4 border border-gray-200 space-y-3 font-sans text-xs max-w-sm mx-auto shadow-inner"
           id="printable-receipt"
         >
-          {printMode === 'kitchen' ? (
-            /* KOT Kitchen Slip */
-            <div className="space-y-2.5">
-              <div className="text-center pb-2 border-b-2 border-dashed border-gray-400">
-                <h2 className="text-base font-black uppercase tracking-wider text-gray-900">မီးဖိုချောင် အော်ဒါ (KOT)</h2>
-                <div className="flex justify-between items-center text-[11px] text-gray-600 mt-1 font-bold">
-                  <span>{tableLabel}</span>
-                  <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                {sale.items?.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-start text-sm border-b border-gray-100 pb-1">
-                    <div>
-                      <span className="font-black text-gray-900">{item.name}</span>
-                      {item.notes && (
-                        <p className="text-xs font-bold text-amber-700 mt-0.5">
-                          👉 {item.notes}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-base font-black px-2 py-0.5 bg-gray-100 rounded-md">
-                      x {item.quantity}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* Customer Receipt */
             <div className="space-y-3">
               <div className="text-center pb-2.5 border-b border-dashed border-gray-300">
                 <img
@@ -164,7 +130,6 @@ export default function InvoiceModal({ isOpen, onClose, sale }) {
                 <p>Please Come Again</p>
               </div>
             </div>
-          )}
         </div>
 
         {/* Buttons */}
@@ -173,17 +138,8 @@ export default function InvoiceModal({ isOpen, onClose, sale }) {
             ပိတ်မည်
           </Button>
           <Button
-            variant="outline"
-            className="flex-1 gap-1.5 h-10 rounded-xl text-xs font-bold"
-            onClick={() => handlePrint('kitchen')}
-            title="မီးဖိုချောင် စာရွက်ထုတ်မည်"
-          >
-            <UtensilsCrossed size={14} />
-            KOT ထုတ်မည်
-          </Button>
-          <Button
             className="flex-1 gap-1.5 h-10 rounded-xl text-xs font-bold shadow-sm"
-            onClick={() => handlePrint('receipt')}
+            onClick={handlePrint}
           >
             <Printer size={14} />
             ပြေစာထုတ်မည်

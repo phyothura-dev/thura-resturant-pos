@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
+import type { PropsWithChildren } from 'react';
+import type { RecordModel } from 'pocketbase';
 import { pb } from '../services/pocketbase';
 import { AuthContext } from './authContextDef';
+import type { UserRecord } from '../types';
 
-function formatUserRecord(record) {
+function formatUserRecord(record: RecordModel | null): UserRecord | null {
   if (!record) return null;
+  const role = record.role === 'admin' ? 'admin' : 'staff';
   return {
     ...record,
-    role: record.role || 'staff',
+    email: record.email || '',
+    role,
     user_metadata: {
-      role: record.role || 'staff',
+      role,
       full_name: record.name || '',
     },
   };
 }
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState(() => (pb.authStore.isValid ? formatUserRecord(pb.authStore.record) : null));
   const [session, setSession] = useState(() =>
     pb.authStore.isValid ? { user: formatUserRecord(pb.authStore.record), token: pb.authStore.token } : null

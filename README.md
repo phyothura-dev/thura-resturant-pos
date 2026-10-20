@@ -1,6 +1,6 @@
 # Thura Restaurant POS (Point of Sale) System
 
-A modern, offline-capable Restaurant Point of Sale (POS) system built with **React 19**, **Vite**, and **PocketBase (Embedded SQLite)**. Designed for speed, reliability, zero recurring costs, and local network (LAN) operations.
+A modern, offline-capable Restaurant Point of Sale (POS) system built with **React 19**, **TypeScript**, **Vite**, **Zod**, and **PocketBase (Embedded SQLite)**. Designed for speed, reliability, zero recurring costs, and local network (LAN) operations.
 
 ---
 
@@ -17,6 +17,11 @@ A modern, offline-capable Restaurant Point of Sale (POS) system built with **Rea
   - Automatic tax calculation (5% configurable commercial tax).
 - **Invoice & Thermal Printing**:
   - Post-checkout invoice summary with itemized breakdown.
+  - Live kitchen order queue with sent, preparing, ready, and served states (screen based; no KOT paper printing).
+- **Order Cancellation History**:
+  - Pending orders can be cancelled with a required reason while preserving the sale record, staff name, and cancellation time.
+- **Daily Closing**:
+  - Admins can close a business date after all orders are completed or cancelled, compare expected cash with counted cash, and review payment totals and prior closings.
   - Optimized `@media print` layout tailored for standard 58mm / 80mm POS thermal receipt printers.
 - **Product & Category Management**:
   - CRUD operations for restaurant menus and categories.
@@ -39,6 +44,7 @@ A modern, offline-capable Restaurant Point of Sale (POS) system built with **Rea
 | Layer | Technologies |
 | :--- | :--- |
 | **Frontend Framework** | React 19, Vite (v8) |
+| **Application Types & Validation** | TypeScript, Zod |
 | **Routing** | React Router DOM v7 (Route-level code splitting via `React.lazy`) |
 | **Styling & UI** | Tailwind CSS v3.4, Lucide React, Sonner (Toast notifications) |
 | **Server State & Caching**| TanStack React Query v5 |
@@ -58,48 +64,51 @@ resturant-post/
 │   └── pocketbase            # PocketBase executable binary
 ├── scripts/
 │   └── setup_pocketbase.js   # Automated schema creation & data seeder
-├── src/
+├── src/                      # TypeScript React application
+│   ├── schemas/              # Zod runtime validation schemas
+│   ├── types/                # Shared domain models and inferred form types
 │   ├── assets/               # Static assets & icons
 │   ├── components/           # UI and feature components
 │   │   ├── ui/               # Reusable atomic UI (Button, Card, Modal, Table, Badge, Input)
-│   │   ├── CartPanel.jsx     # POS cart panel
-│   │   ├── CategoryForm.jsx  # Category modal form
-│   │   ├── InvoiceModal.jsx  # Printable receipt voucher
-│   │   ├── ProductCard.jsx   # Menu item card with image error fallback
-│   │   ├── ProductForm.jsx   # Product modal form
-│   │   ├── ProtectedRoute.jsx# Role-guarded route wrapper
-│   │   ├── Sidebar.jsx       # Responsive navigation sidebar
-│   │   └── UserForm.jsx      # Staff/Admin user modal form
+│   │   ├── CartPanel.tsx     # POS cart panel
+│   │   ├── CategoryForm.tsx  # Category modal form
+│   │   ├── InvoiceModal.tsx  # Printable receipt voucher
+│   │   ├── ProductCard.tsx   # Menu item card with image error fallback
+│   │   ├── ProductForm.tsx   # Product modal form
+│   │   ├── ProtectedRoute.tsx# Role-guarded route wrapper
+│   │   ├── Sidebar.tsx       # Responsive navigation sidebar
+│   │   └── UserForm.tsx      # Staff/Admin user modal form
 │   ├── config/
-│   │   └── constants.js      # App configuration, tax rates & helper functions
+│   │   └── constants.ts      # App configuration, tax rates & helper functions
 │   ├── contexts/
-│   │   ├── AuthContext.jsx   # Session provider
-│   │   └── authContextDef.js # Dedicated React context definition
+│   │   ├── AuthContext.tsx   # Session provider
+│   │   └── authContextDef.ts # Dedicated React context definition
 │   ├── hooks/
-│   │   ├── useAuth.js        # Auth state hook
-│   │   └── useCart.js        # Cart management hook with local storage hydration
+│   │   ├── useAuth.ts        # Auth state hook
+│   │   └── useCart.ts        # Cart management hook with local storage hydration
 │   ├── layout/
-│   │   └── MainLayout.jsx    # Dashboard layout wrapper
+│   │   └── MainLayout.tsx    # Dashboard layout wrapper
 │   ├── pages/                # Lazy-loaded route views
-│   │   ├── Categories.jsx    # Category management (Admin)
-│   │   ├── Login.jsx         # Sign-in page
-│   │   ├── POS.jsx           # POS ordering interface
-│   │   ├── Products.jsx      # Product management
-│   │   ├── Reports.jsx       # Analytics & sales history (Admin)
-│   │   ├── Tables.jsx        # Table layout view
-│   │   └── Users.jsx         # User accounts management (Admin)
+│   │   ├── Categories.tsx    # Category management (Admin)
+│   │   ├── DailyClosing.tsx  # Daily sales close and cash reconciliation (Admin)
+│   │   ├── Login.tsx         # Sign-in page
+│   │   ├── POS.tsx           # POS ordering interface
+│   │   ├── Products.tsx      # Product management
+│   │   ├── Reports.tsx       # Analytics & sales history (Admin)
+│   │   ├── Tables.tsx        # Table layout view
+│   │   └── Users.tsx         # User accounts management (Admin)
 │   ├── services/             # API data services (PocketBase SDK)
-│   │   ├── apiCategories.js
-│   │   ├── apiProducts.js
-│   │   ├── apiSaleItems.js
-│   │   ├── apiSales.js
-│   │   ├── apiTables.js
-│   │   ├── apiUsers.js
-│   │   └── pocketbase.js     # PocketBase client instance
+│   │   ├── apiCategories.ts
+│   │   ├── apiProducts.ts
+│   │   ├── apiSaleItems.ts
+│   │   ├── apiSales.ts
+│   │   ├── apiTables.ts
+│   │   ├── apiUsers.ts
+│   │   └── pocketbase.ts     # PocketBase client instance
 │   ├── utils/
-│   │   └── format.js         # Currency and datetime formatting utilities
-│   ├── App.jsx               # Main routing & code-split definition
-│   └── main.jsx              # React application entrypoint
+│   │   └── format.ts         # Currency and datetime formatting utilities
+│   ├── App.tsx               # Main routing & code-split definition
+│   └── main.tsx              # React application entrypoint
 ├── .env                      # Environment configuration
 ├── package.json              # Dependencies and npm scripts
 └── vite.config.js            # Vite bundler & Rollup chunking configuration
@@ -130,6 +139,8 @@ npm run setup:db
 ```bash
 npm run dev
 ```
+
+Run the TypeScript check with `npm run typecheck`.
 Open your browser at `http://localhost:5173`.
 
 ---
@@ -181,7 +192,8 @@ docker compose down
 | `npm run dev` | Starts the Vite development server on port `5173`. |
 | `npm run build` | Compiles and optimizes the frontend into the `dist/` folder. |
 | `npm run build:prod` | Compiles the frontend directly into `backend/pb_public/` for single-port delivery. |
-| `npm run lint` | Runs ESLint across all codebase files. |
+| `npm run lint` | Runs ESLint on the JavaScript configuration and utility scripts. |
+| `npm run typecheck` | Checks the TypeScript modules without emitting files. |
 | `npm run preview` | Previews the compiled production build locally. |
 | `npm run pocketbase` | Launches the PocketBase executable server on `0.0.0.0:8090`. |
 | `npm run setup:db` | Seeds default tables, categories, products, and admin/staff accounts. |

@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { UploadCloud, Trash2, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { APP_CONFIG } from '@/config/constants';
 import { toast } from 'sonner';
+import { productSchema } from '../schemas';
 
 export default function ProductForm({ productToEdit = {}, onClose }) {
   const isEditSession = Boolean(productToEdit?.id);
@@ -97,19 +98,18 @@ export default function ProductForm({ productToEdit = {}, onClose }) {
 
   function handleSubmit(e) {
     e.preventDefault();
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice < 0) {
-      toast.error('ဈေးနှုန်းကို မှန်ကန်စွာ ထည့်သွင်းပါ');
-      return;
-    }
-
-    const data = {
+    const parsed = productSchema.safeParse({
       name: name.trim(),
-      price: parsedPrice,
+      price: Number(price),
       category_id: categoryId || null,
       image: imageFile,
       remove_image: removeImage,
-    };
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || 'ကုန်ပစ္စည်းအချက်အလက်ကို စစ်ဆေးပါ');
+      return;
+    }
+    const data = parsed.data;
 
     if (isEditSession) {
       update(data);

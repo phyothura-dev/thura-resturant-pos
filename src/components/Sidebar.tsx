@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, LayoutGrid, Package, Users, LogOut, X, PanelLeftClose, PanelLeftOpen, UtensilsCrossed } from 'lucide-react';
+import { FileText, LayoutGrid, Package, Users, LogOut, X, PanelLeftClose, PanelLeftOpen, UtensilsCrossed, ChefHat, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'sonner';
 import { Button } from './ui/Button';
@@ -20,6 +20,7 @@ const allNavItems = [
     label: 'ကုန်ပစ္စည်းများ',
     roles: [ROLES.ADMIN, ROLES.STAFF],
   },
+  { to: '/kitchen', icon: ChefHat, label: 'မီးဖိုချောင် (KOT)', roles: [ROLES.ADMIN, ROLES.STAFF] },
   {
     to: '/categories',
     icon: LayoutGrid,
@@ -38,6 +39,7 @@ const allNavItems = [
     label: 'စာရင်းချုပ်',
     roles: [ROLES.ADMIN],
   },
+  { to: '/daily-closing', icon: ClipboardCheck, label: 'နေ့စဉ် အရောင်းပိတ်စာရင်း', roles: [ROLES.ADMIN] },
 ];
 
 export default function Sidebar({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) {

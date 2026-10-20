@@ -130,11 +130,16 @@ async function setup() {
         { name: 'table', type: 'relation', collectionId: tablesCol.id, maxSelect: 1, required: false },
         { name: 'order_type', type: 'select', values: ['dine_in', 'takeaway'], required: false },
         { name: 'total_amount', type: 'number', required: true },
-        { name: 'status', type: 'select', values: ['pending', 'completed'], required: true },
+        { name: 'status', type: 'select', values: ['pending', 'completed', 'cancelled'], required: true },
         { name: 'payment_method', type: 'select', values: ['cash', 'kpay', 'wavepay', 'banking', 'digital'], required: false },
         { name: 'discount_amount', type: 'number', required: false },
         { name: 'received_amount', type: 'number', required: false },
         { name: 'change_amount', type: 'number', required: false },
+        { name: 'kitchen_status', type: 'select', values: ['sent', 'preparing', 'ready', 'served'], required: false },
+        { name: 'kitchen_sent_at', type: 'date', required: false },
+        { name: 'cancellation_reason', type: 'text', required: false },
+        { name: 'cancelled_by', type: 'text', required: false },
+        { name: 'cancelled_at', type: 'date', required: false },
       ],
     });
 
@@ -151,6 +156,31 @@ async function setup() {
         { name: 'product', type: 'relation', collectionId: productsCol.id, maxSelect: 1, required: true },
         { name: 'quantity', type: 'number', required: true },
         { name: 'notes', type: 'text', required: false },
+      ],
+    });
+
+    await upsertCollection('daily_closings', {
+      type: 'base',
+      listRule: '@request.auth.role = "admin"',
+      viewRule: '@request.auth.role = "admin"',
+      createRule: '@request.auth.role = "admin"',
+      updateRule: null,
+      deleteRule: null,
+      indexes: ['CREATE UNIQUE INDEX idx_daily_closings_business_date ON daily_closings (business_date)'],
+      fields: [
+        { name: 'business_date', type: 'text', required: true, min: 10, max: 10 },
+        { name: 'sales_count', type: 'number', required: true },
+        { name: 'cancelled_count', type: 'number', required: false },
+        { name: 'total_sales', type: 'number', required: true },
+        { name: 'cash_sales', type: 'number', required: true },
+        { name: 'kpay_sales', type: 'number', required: false },
+        { name: 'wavepay_sales', type: 'number', required: false },
+        { name: 'banking_sales', type: 'number', required: false },
+        { name: 'other_digital_sales', type: 'number', required: false },
+        { name: 'expected_cash', type: 'number', required: true },
+        { name: 'counted_cash', type: 'number', required: true },
+        { name: 'cash_difference', type: 'number', required: true },
+        { name: 'closed_by', type: 'text', required: true },
       ],
     });
 

@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { pb } from '../services/pocketbase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { loginSchema } from '../schemas';
+import type { FormEvent } from 'react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -12,17 +14,22 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message || 'အကောင့်အချက်အလက်ကို စစ်ဆေးပါ');
+      return;
+    }
     setLoading(true);
 
     try {
-      await pb.collection('users').authWithPassword(email, password);
+      await pb.collection('users').authWithPassword(parsed.data.email, parsed.data.password);
       toast.success('အကောင့်ဝင်ခြင်း အောင်မြင်ပါသည်');
       navigate('/');
     } catch (err) {
       toast.error('အကောင့်ဝင်ခြင်း မအောင်မြင်ပါ', {
-        description: err.message || 'အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်',
+        description: err instanceof Error ? err.message : 'အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်',
       });
     } finally {
       setLoading(false);

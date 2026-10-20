@@ -35,7 +35,7 @@ export default function Reports() {
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todaysSales = sales.filter((s) => s.created_at && s.created_at.startsWith(today));
+    const todaysSales = sales.filter((s) => s.status === 'completed' && s.created_at && s.created_at.startsWith(today));
 
     const dailyTotal = todaysSales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
     const orderCount = todaysSales.length;
@@ -58,7 +58,7 @@ export default function Reports() {
       .reverse();
 
     return last7Days.map((date) => {
-      const daySales = sales.filter((s) => s.created_at && s.created_at.startsWith(date));
+      const daySales = sales.filter((s) => s.status === 'completed' && s.created_at && s.created_at.startsWith(date));
       const total = daySales.reduce((sum, s) => sum + (s.total_amount || 0), 0);
       return {
         name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
@@ -67,6 +67,8 @@ export default function Reports() {
       };
     });
   }, [sales]);
+
+  const visibleSales = sales.filter((sale) => sale.status !== 'pending');
 
   if (loading) {
     return (
@@ -121,18 +123,27 @@ export default function Reports() {
                 <TableHead className="font-bold">အချိန်</TableHead>
                 <TableHead className="font-bold">ဘောင်ချာနံပါတ်</TableHead>
                 <TableHead className="font-bold">ငွေချေမှု</TableHead>
+                <TableHead className="font-bold">အခြေအနေ</TableHead>
                 <TableHead className="font-bold">ပစ္စည်းများ</TableHead>
                 <TableHead className="text-right font-bold">ကျသင့်ငွေ</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sales.map((sale) => (
+              {visibleSales.map((sale) => (
                 <TableRow key={sale.id} className="hover:bg-gray-50/30">
                   <TableCell className="font-medium text-gray-900 py-4">{formatDate(sale.created_at)}</TableCell>
                   <TableCell className="text-gray-500 py-4">{formatTime(sale.created_at)}</TableCell>
                   <TableCell className="text-gray-500 py-4">#{sale.id.toString().slice(-6)}</TableCell>
                   <TableCell className="py-4">
                     <Badge variant={sale.payment_method === 'cash' ? 'default' : 'warning'}>{sale.payment_method === 'cash' ? 'ငွေသား' : 'ဒစ်ဂျစ်တယ်'}</Badge>
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Badge variant={sale.status === 'cancelled' ? 'destructive' : 'default'}>{sale.status === 'cancelled' ? 'ပယ်ဖျက်' : 'ပြီးစီး'}</Badge>
+                    {sale.status === 'cancelled' && (
+                      <p className="mt-1 max-w-48 text-xs text-gray-500">
+                        {sale.cancellation_reason}<br />{sale.cancelled_by} · {formatTime(sale.cancelled_at)}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell className="py-4">
                     <div className="flex flex-wrap gap-1 max-w-xs">
@@ -146,9 +157,9 @@ export default function Reports() {
                   <TableCell className="text-right font-bold text-gray-900 py-4">{(sale.total_amount || 0).toLocaleString()} ကျပ်</TableCell>
                 </TableRow>
               ))}
-              {sales.length === 0 && (
+              {visibleSales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                  <TableCell colSpan={7} className="h-32 text-center text-gray-500">
                     အရောင်းစာရင်းမရှိသေးပါ
                   </TableCell>
                 </TableRow>

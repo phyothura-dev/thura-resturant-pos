@@ -1,5 +1,5 @@
 import { useState, memo } from 'react';
-import { ShoppingCart, Trash2, Plus, Minus, Loader2, Save, CreditCard, MessageSquare, Check, X } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, Loader2, Save, CreditCard, MessageSquare, Check, X, Ban } from 'lucide-react';
 import { Button } from './ui/Button';
 import { APP_CONFIG } from '@/config/constants';
 
@@ -153,6 +153,8 @@ export default function CartPanel({
   onSave,
   onCheckout,
   orderType = 'dine_in',
+  onCancelOrder,
+  isCancelling = false,
 }) {
   const isEmpty = cart.length === 0;
 
@@ -230,6 +232,11 @@ export default function CartPanel({
         </div>
 
         <div className="flex gap-2">
+          {pendingSaleId && (
+            <Button variant="outline" size="sm" className="h-11 rounded-xl border-red-200 px-3 text-red-700 hover:bg-red-50" disabled={isSaving || isCheckingOut || isCancelling} onClick={onCancelOrder} title="အော်ဒါပယ်ဖျက်မည်">
+              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+            </Button>
+          )}
           {orderType === 'dine_in' && (
             <Button
               variant="outline"

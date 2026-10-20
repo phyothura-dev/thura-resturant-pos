@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Banknote, QrCode, Smartphone, CreditCard, Sparkles, ArrowRight } from 'lucide-react';
 import { APP_CONFIG } from '@/config/constants';
+import { paymentSchema } from '../schemas';
 
 const PAYMENT_METHODS = [
   { id: 'cash', label: 'ငွေသား', icon: Banknote, color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
@@ -67,13 +68,15 @@ function PaymentModalContent({
 
   const handleConfirm = () => {
     if (isShort) return;
-    onConfirmPayment({
+    const parsed = paymentSchema.safeParse({
       paymentMethod,
       discountAmount,
       receivedAmount: paymentMethod === 'cash' ? receivedNum : finalTotal,
       changeAmount: paymentMethod === 'cash' ? changeAmount : 0,
       finalTotal,
     });
+    if (!parsed.success) return;
+    onConfirmPayment(parsed.data);
   };
 
   return (

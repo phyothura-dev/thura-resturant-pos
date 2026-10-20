@@ -95,7 +95,7 @@ export async function getPendingTakeawaySales() {
   }
 }
 
-export async function createPendingSale({ tableId, orderType = 'dine_in', items, totalAmount }) {
+export async function createPendingSale({ tableId, orderType = 'dine_in', items, totalAmount, sendToKitchen = false }) {
   try {
     const isTakeaway = orderType === 'takeaway' || tableId === 'takeaway' || !tableId;
     const saleData = {
@@ -104,6 +104,7 @@ export async function createPendingSale({ tableId, orderType = 'dine_in', items,
       total_amount: totalAmount,
       status: 'pending',
       payment_method: 'cash',
+      ...(sendToKitchen ? { kitchen_status: 'sent', kitchen_sent_at: new Date().toISOString() } : {}),
     };
 
     const sale = await pb.collection('sales').create(saleData);
@@ -120,16 +121,57 @@ export async function createPendingSale({ tableId, orderType = 'dine_in', items,
   }
 }
 
-export async function updatePendingSale({ saleId, items, totalAmount }) {
+export async function updatePendingSale({ saleId, items, totalAmount, sendToKitchen = false }) {
   try {
     await pb.collection('sales').update(saleId, {
       total_amount: totalAmount,
+      ...(sendToKitchen ? { kitchen_status: 'sent', kitchen_sent_at: new Date().toISOString() } : {}),
     });
 
     await upsertSaleItems(saleId, items);
   } catch (error) {
     throw new Error('Sale total could not be updated: ' + error.message);
   }
+}
+
+export async function getKitchenOrders() {
+  const records = await pb.collection('sales').getFullList({
+    filter: 'status = "pending"',
+    sort: 'created',
+    expand: 'table,sale_items_via_sale.product',
+  });
+
+  return records
+    .filter((sale) => (sale.kitchen_status || 'sent') !== 'served')
+    .map((sale) => ({
+      ...sale,
+      kitchen_status: sale.kitchen_status || 'sent',
+      items: (sale.expand?.sale_items_via_sale || []).map((item) => ({
+        id: item.id,
+        name: item.expand?.product?.name || 'ပစ္စည်းမရှိတော့ပါ',
+        quantity: item.quantity,
+        notes: item.notes || '',
+      })),
+    }));
+}
+
+export async function updateKitchenOrderStatus(saleId, kitchenStatus) {
+  return pb.collection('sales').update(saleId, { kitchen_status: kitchenStatus });
+}
+
+export async function cancelPendingSale({ saleId, tableId, reason, cancelledBy }) {
+  const sale = await pb.collection('sales').update(saleId, {
+    status: 'cancelled',
+    cancellation_reason: reason.trim(),
+    cancelled_by: cancelledBy || 'ဝန်ထမ်း',
+    cancelled_at: new Date().toISOString(),
+  });
+
+  if (tableId && tableId !== 'takeaway') {
+    await setTableOccupied(tableId, false);
+  }
+
+  return sale;
 }
 
 export async function completeSale({

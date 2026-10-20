@@ -11,6 +11,7 @@ import {
   updatePendingSale,
   completeSale,
   moveTable,
+  cancelPendingSale,
 } from '../services/apiSales';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
@@ -24,6 +25,8 @@ import InvoiceModal from '../components/InvoiceModal';
 import PaymentModal from '../components/PaymentModal';
 import MoveTableModal from '../components/MoveTableModal';
 import { toast } from 'sonner';
+import { Modal } from '../components/ui/Modal';
+import { cancellationSchema } from '../schemas';
 
 export default function POS() {
   const { tableId } = useParams();
@@ -41,6 +44,8 @@ export default function POS() {
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [moveTableModalOpen, setMoveTableModalOpen] = useState(false);
   const [completedSaleData, setCompletedSaleData] = useState(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const { data: tables = [] } = useQuery({
     queryKey: ['tables'],
@@ -106,18 +111,21 @@ export default function POS() {
     queryClient.invalidateQueries({ queryKey: ['pendingSale'] });
     queryClient.invalidateQueries({ queryKey: ['tables'] });
     queryClient.invalidateQueries({ queryKey: ['sales'] });
+    queryClient.invalidateQueries({ queryKey: ['takeawaySales'] });
+    queryClient.invalidateQueries({ queryKey: ['kitchenOrders'] });
   };
 
   // Save Order Mutation (Pending)
   const { mutate: saveSale, isPending: isSaving } = useMutation({
     mutationFn: () =>
       pendingSaleId
-        ? updatePendingSale({ saleId: pendingSaleId, items: cart, totalAmount: total })
+        ? updatePendingSale({ saleId: pendingSaleId, items: cart, totalAmount: total, sendToKitchen: true })
         : createPendingSale({
             tableId: isTakeaway ? null : tableId,
             orderType: isTakeaway ? 'takeaway' : 'dine_in',
             items: cart,
             totalAmount: total,
+            sendToKitchen: true,
           }),
     onSuccess: () => {
       invalidateAll();
@@ -186,6 +194,27 @@ export default function POS() {
       navigate(`/pos/${toTableId}`);
     },
     onError: (err) => toast.error('မအောင်မြင်ပါ', { description: err.message }),
+  });
+
+  const { mutate: cancelOrder, isPending: isCancelling } = useMutation({
+    mutationFn: () => {
+      const parsed = cancellationSchema.safeParse({ reason: cancelReason });
+      if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'ပယ်ဖျက်ရသည့်အကြောင်းရင်း ထည့်ပါ');
+      return cancelPendingSale({
+        saleId: pendingSaleId,
+        tableId: isTakeaway ? null : tableId,
+        reason: parsed.data.reason,
+        cancelledBy: user?.name || user?.email,
+      });
+    },
+    onSuccess: () => {
+      clearCart();
+      invalidateAll();
+      setCancelModalOpen(false);
+      toast.success('အော်ဒါကို ပယ်ဖျက်ပြီး မှတ်တမ်းတင်လိုက်ပါပြီ');
+      navigate('/tables');
+    },
+    onError: (err) => toast.error('အော်ဒါပယ်ဖျက်၍ မရပါ', { description: err.message }),
   });
 
   const categoryOptions = useMemo(() => {
@@ -361,7 +390,20 @@ export default function POS() {
         onSave={handleSave}
         onCheckout={handleOpenPayment}
         orderType={isTakeaway ? 'takeaway' : 'dine_in'}
+        onCancelOrder={() => { setCancelReason(''); setCancelModalOpen(true); }}
+        isCancelling={isCancelling}
       />
+
+      <Modal isOpen={cancelModalOpen} onClose={() => !isCancelling && setCancelModalOpen(false)} title="အော်ဒါပယ်ဖျက်မည်">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">ဒီအော်ဒါကို ဖျက်ပစ်မယ့်အစား ပယ်ဖျက်မှတ်တမ်းအဖြစ် သိမ်းထားပါမယ်။ ပယ်ဖျက်ရတဲ့အကြောင်းရင်းကို ထည့်ပါ။</p>
+          <textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} maxLength={500} placeholder="ဥပမာ - ဧည့်သည် မှာယူမှုကို ပြန်ရုပ်သိမ်းသည်" className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCancelModalOpen(false)} disabled={isCancelling}>မလုပ်တော့ပါ</Button>
+            <Button variant="destructive" onClick={() => cancelOrder()} disabled={!cancelReason.trim() || isCancelling} isLoading={isCancelling}>ပယ်ဖျက်မှတ်တမ်းတင်မည်</Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Payment Modal (Myanmar Payments & Change Calculator) */}
       <PaymentModal

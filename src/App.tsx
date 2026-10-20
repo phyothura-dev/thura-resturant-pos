@@ -14,6 +14,8 @@ const Products = lazy(() => import('./pages/Products'));
 const Categories = lazy(() => import('./pages/Categories'));
 const Users = lazy(() => import('./pages/Users'));
 const Reports = lazy(() => import('./pages/Reports'));
+const Kitchen = lazy(() => import('./pages/Kitchen'));
+const DailyClosing = lazy(() => import('./pages/DailyClosing'));
 
 function PageLoader() {
   return (
@@ -39,11 +41,13 @@ function App() {
                 <Route path="/tables" element={<Tables />} />
                 <Route path="/pos/:tableId" element={<POS />} />
                 <Route path="/products" element={<Products />} />
+                <Route path="/kitchen" element={<Kitchen />} />
 
                 <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/users" element={<Users />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/daily-closing" element={<DailyClosing />} />
                 </Route>
               </Route>
             </Route>
