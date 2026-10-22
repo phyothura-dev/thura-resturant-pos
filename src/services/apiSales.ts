@@ -221,3 +221,46 @@ export async function moveTable({ fromTableId, toTableId, saleId }) {
     throw new Error('Table could not be moved: ' + error.message);
   }
 }
+
+export async function mergeTables({ fromTableId, toTableId, fromSaleId, toSaleId }) {
+  try {
+    const sourceItems = await pb.collection('sale_items').getFullList({
+      filter: `sale = "${fromSaleId}"`,
+    });
+
+    for (const item of sourceItems) {
+      await pb.collection('sale_items').update(item.id, {
+        sale: toSaleId,
+      });
+    }
+
+    const allTargetItems = await pb.collection('sale_items').getFullList({
+      filter: `sale = "${toSaleId}"`,
+      expand: 'product',
+    });
+
+    const newSubtotal = allTargetItems.reduce(
+      (sum, item) => sum + (item.expand?.product?.price || 0) * item.quantity,
+      0
+    );
+
+    await pb.collection('sales').update(toSaleId, {
+      total_amount: newSubtotal,
+    });
+
+    await pb.collection('sales').update(fromSaleId, {
+      status: 'cancelled',
+      cancellation_reason: 'စားပွဲသို့ ပေါင်းစည်းထားပါသည်',
+      cancelled_by: 'စနစ်',
+      cancelled_at: new Date().toISOString(),
+    });
+
+    if (fromTableId && fromTableId !== 'takeaway') {
+      await setTableOccupied(fromTableId, false);
+    }
+
+    return true;
+  } catch (error) {
+    throw new Error('Table could not be merged: ' + error.message);
+  }
+}

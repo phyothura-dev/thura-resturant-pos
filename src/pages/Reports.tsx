@@ -2,14 +2,17 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { pb } from '../services/pocketbase';
 import { Card } from '../components/ui/Card';
-import { Loader2, DollarSign, ShoppingCart, TrendingUp, FileText } from 'lucide-react';
+import { DollarSign, ShoppingCart, TrendingUp, FileText } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
+import LoadingState from '../components/ui/LoadingState';
+import ErrorState from '../components/ui/ErrorState';
+import EmptyState from '../components/ui/EmptyState';
 import { formatDate, formatTime } from '@/utils/format';
 import { Badge } from '@/components/ui/Badge';
 
 export default function Reports() {
-  const { data: sales = [], isLoading: loading } = useQuery({
+  const { data: sales = [], isLoading: loading, isError, refetch } = useQuery({
     queryKey: ['sales'],
     queryFn: async () => {
       const records = await pb.collection('sales').getFullList({
@@ -70,12 +73,20 @@ export default function Reports() {
 
   const visibleSales = sales.filter((sale) => sale.status !== 'pending');
 
-  if (loading) {
+  if (isError) {
     return (
-      <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-8 pb-10">
+        <ErrorState
+          title="အစီရင်ခံစာ ဒေတာရယူ၍မရပါ"
+          message="ဆာဗာချိတ်ဆက်မှုကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပါ။"
+          onRetry={refetch}
+        />
       </div>
     );
+  }
+
+  if (loading) {
+    return <LoadingState type="spinner" />;
   }
 
   return (
@@ -159,8 +170,13 @@ export default function Reports() {
               ))}
               {visibleSales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-gray-500">
-                    အရောင်းစာရင်းမရှိသေးပါ
+                  <TableCell colSpan={7} className="p-0">
+                    <EmptyState
+                      icon={FileText}
+                      title="အရောင်းစာရင်း မရှိသေးပါ"
+                      description="ပြီးစီးထားသော အရောင်းများ ဤနေရာတွင် ပေါ်လာပါမည်"
+                      className="py-10 border-0 shadow-none"
+                    />
                   </TableCell>
                 </TableRow>
               )}

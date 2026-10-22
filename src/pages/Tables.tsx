@@ -5,6 +5,7 @@ import { getTables } from '../services/apiTables';
 import { getPendingTakeawaySales } from '../services/apiSales';
 import { pb } from '../services/pocketbase';
 import LoadingState from '../components/ui/LoadingState';
+import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { Button } from '../components/ui/Button';
@@ -71,7 +72,7 @@ export default function Tables() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const { data: tables = [], isLoading: tablesLoading } = useQuery({
+  const { data: tables = [], isLoading: tablesLoading, isError: tablesError, refetch: refetchTables } = useQuery({
     queryKey: ['tables'],
     queryFn: getTables,
   });
@@ -208,7 +209,13 @@ export default function Tables() {
       )}
 
       {/* Main Tables Grid */}
-      {tablesLoading ? (
+      {tablesError ? (
+        <ErrorState
+          title="စားပွဲဝိုင်းများ ရယူ၍မရပါ"
+          message="ဆာဗာချိတ်ဆက်မှုကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပါ။"
+          onRetry={refetchTables}
+        />
+      ) : tablesLoading ? (
         <LoadingState type="card" rows={3} />
       ) : filteredTables.length === 0 ? (
         <EmptyState icon={UtensilsCrossed} title="စားပွဲဝိုင်း မရှိသေးပါ" />

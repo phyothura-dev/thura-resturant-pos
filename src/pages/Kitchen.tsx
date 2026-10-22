@@ -1,10 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChefHat, Clock3, Loader2, RefreshCw } from 'lucide-react';
+import { ChefHat, Clock3, Loader2, RefreshCw, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { getKitchenOrders, updateKitchenOrderStatus } from '../services/apiSales';
 import { pb } from '../services/pocketbase';
 import { Button } from '../components/ui/Button';
+import LoadingState from '../components/ui/LoadingState';
+import ErrorState from '../components/ui/ErrorState';
+import EmptyState from '../components/ui/EmptyState';
+import InvoiceModal from '../components/InvoiceModal';
 import { APP_CONFIG } from '../config/constants';
 
 const statusLabels = { sent: 'အသစ်', preparing: 'ချက်ပြုတ်နေသည်', ready: 'အသင့်ဖြစ်ပြီ' };
@@ -16,7 +20,7 @@ function elapsedTime(created) {
   return minutes < 1 ? 'ယခုလေးတင်' : `${minutes} မိနစ်`;
 }
 
-function KitchenOrder({ order, onAdvance, isUpdating }) {
+function KitchenOrder({ order, onAdvance, isUpdating, onPrintKOT }: any) {
   const status = order.kitchen_status;
   return (
     <article className={`rounded-2xl border bg-white p-5 shadow-sm ${status === 'sent' ? 'border-amber-300' : status === 'ready' ? 'border-emerald-300' : 'border-blue-200'}`}>
@@ -35,7 +39,7 @@ function KitchenOrder({ order, onAdvance, isUpdating }) {
         </div>
       </header>
       <ul className="mb-5 space-y-3">
-        {order.items.map((item) => (
+        {order.items.map((item: any) => (
           <li key={item.id} className="flex gap-3 border-b border-dashed border-gray-100 pb-3 last:border-0">
             <span className="min-w-9 rounded-lg bg-gray-100 px-2 py-1 text-center font-black text-gray-800">{item.quantity}×</span>
             <div className="min-w-0 flex-1">
@@ -46,14 +50,27 @@ function KitchenOrder({ order, onAdvance, isUpdating }) {
         ))}
         {order.items.length === 0 && <li className="text-sm text-gray-500">ပစ္စည်းစာရင်း မရှိပါ</li>}
       </ul>
-      <Button className="w-full" disabled={isUpdating} onClick={() => onAdvance(order.id, nextStatus[status])}>
-        {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{nextLabel[status]}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => onPrintKOT(order)}
+          className="h-10 px-3 rounded-xl border-gray-200 text-gray-700"
+          title="KOT စလစ် ထုတ်မည်"
+        >
+          <Printer size={16} />
+        </Button>
+        <Button className="flex-1 h-10 rounded-xl" disabled={isUpdating} onClick={() => onAdvance(order.id, nextStatus[status])}>
+          {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{nextLabel[status]}
+        </Button>
+      </div>
     </article>
   );
 }
 
 export default function Kitchen() {
+  const [kotOrder, setKotOrder] = useState<any>(null);
   const queryClient = useQueryClient();
   const { data: orders = [], isLoading, isError, refetch } = useQuery({ queryKey: ['kitchenOrders'], queryFn: getKitchenOrders, refetchInterval: 30000 });
   const mutation = useMutation({
@@ -75,14 +92,51 @@ export default function Kitchen() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="rounded-xl bg-orange-100 p-3 text-orange-700"><ChefHat size={24} /></span>
-          <div><h1 className="text-2xl font-black text-gray-900">မီးဖိုချောင်အော်ဒါများ</h1><p className="text-sm text-gray-500">KOT · လုပ်ဆောင်ဆဲ အော်ဒါ {orders.length} ခု</p></div>
+          <div><h1 className="text-2xl font-black text-gray-900">မီးဖိုချောင်အော်ဒါများ</h1><p className="text-sm text-gray-500">လုပ်ဆောင်ဆဲ အော်ဒါ {orders.length} ခု</p></div>
         </div>
         <Button variant="outline" onClick={() => refetch()}><RefreshCw size={15} className="mr-2" />အသစ်ပြန်ယူမည်</Button>
       </header>
-      {isLoading ? <div className="flex h-48 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div> : null}
-      {isError && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">အော်ဒါများကို ဖတ်မရပါ။ PocketBase ချိတ်ဆက်မှုနှင့် ခွင့်ပြုချက်ကို စစ်ပြီး ပြန်ကြိုးစားပါ။</div>}
-      {!isLoading && !isError && orders.length === 0 && <div className="rounded-2xl border border-dashed bg-white py-20 text-center"><ChefHat className="mx-auto mb-3 text-gray-300" size={42} /><p className="font-semibold text-gray-600">မီးဖိုချောင်အော်ဒါ မရှိသေးပါ</p></div>}
-      {orders.length > 0 && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{orders.map((order) => <KitchenOrder key={order.id} order={order} isUpdating={mutation.isPending && mutation.variables?.id === order.id} onAdvance={(id, status) => mutation.mutate({ id, status })} />)}</div>}
+      {isLoading && <LoadingState type="card" rows={2} />}
+      {isError && (
+        <ErrorState
+          title="မီးဖိုချောင် အော်ဒါများ ရယူ၍မရပါ"
+          message="PocketBase ချိတ်ဆက်မှုနှင့် ခွင့်ပြုချက်ကို စစ်ပြီး ပြန်ကြိုးစားပါ။"
+          onRetry={refetch}
+        />
+      )}
+      {!isLoading && !isError && orders.length === 0 && (
+        <EmptyState
+          icon={ChefHat}
+          title="မီးဖိုချောင်အော်ဒါ မရှိသေးပါ"
+          description="အသစ်ရောက်လာသော မီးဖိုချောင်အော်ဒါများ ဤနေရာတွင် ပေါ်လာပါမည်"
+          className="py-14"
+        />
+      )}
+      {orders.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {orders.map((order: any) => (
+            <KitchenOrder
+              key={order.id}
+              order={order}
+              isUpdating={mutation.isPending && mutation.variables?.id === order.id}
+              onAdvance={(id: string, status: string) => mutation.mutate({ id, status })}
+              onPrintKOT={(orderToPrint: any) => setKotOrder(orderToPrint)}
+            />
+          ))}
+        </div>
+      )}
+
+      {kotOrder && (
+        <InvoiceModal
+          isOpen={Boolean(kotOrder)}
+          onClose={() => setKotOrder(null)}
+          sale={{
+            ...kotOrder,
+            items: kotOrder.items,
+            total_amount: 0,
+          }}
+        />
+      )}
       <p className="text-xs text-gray-400">အော်ဒါပမာဏ: {orders.reduce((sum, order) => sum + order.items.reduce((n, item) => n + item.quantity, 0), 0)} ခု · ငွေကြေး {APP_CONFIG.CURRENCY}</p>
     </div>
   );

@@ -13,7 +13,9 @@ export async function getSalesForClosing(date: string): Promise<SaleRecord[]> {
   const { start, end } = getLocalDayRange(date);
   return pb.collection('sales').getFullList({
     filter: `created >= "${start}" && created < "${end}"`,
+    fields: 'id,created,status,total_amount,payment_method',
     sort: 'created',
+    batch: 200,
   }) as unknown as Promise<SaleRecord[]>;
 }
 
@@ -27,7 +29,10 @@ export async function getDailyClosing(date: string): Promise<DailyClosingRecord 
 }
 
 export async function getRecentClosings() {
-  return pb.collection('daily_closings').getList<DailyClosingRecord>(1, 30, { sort: '-business_date' });
+  return pb.collection('daily_closings').getList<DailyClosingRecord>(1, 30, {
+    sort: '-business_date',
+    fields: 'id,business_date,sales_count,total_sales,expected_cash,counted_cash,cash_difference,closed_by,created',
+  });
 }
 
 export async function saveDailyClosing({ date, sales, countedCash, user }: {

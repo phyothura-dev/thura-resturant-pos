@@ -11,6 +11,7 @@ import {
   updatePendingSale,
   completeSale,
   moveTable,
+  mergeTables,
   cancelPendingSale,
 } from '../services/apiSales';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +19,10 @@ import { useCart } from '../hooks/useCart';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { CustomSelect } from '../components/ui/CustomSelect';
-import { Search, Loader2, ArrowLeft, X, UtensilsCrossed, ArrowRightLeft, ShoppingBag, Filter } from 'lucide-react';
+import { Search, ArrowLeft, X, UtensilsCrossed, ArrowRightLeft, ShoppingBag, Filter, Printer } from 'lucide-react';
+import LoadingState from '../components/ui/LoadingState';
+import ErrorState from '../components/ui/ErrorState';
+import EmptyState from '../components/ui/EmptyState';
 import ProductCard from '@/components/ProductCard';
 import CartPanel from '../components/CartPanel';
 import InvoiceModal from '../components/InvoiceModal';
@@ -62,12 +66,17 @@ export default function POS() {
     [tables, tableId]
   );
 
+  const occupiedTables = useMemo(
+    () => tables.filter((t) => t.is_occupied && t.id !== tableId),
+    [tables, tableId]
+  );
+
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
   });
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products = [], isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useQuery({
     queryKey: ['products'],
     queryFn: getProducts,
   });
@@ -92,7 +101,10 @@ export default function POS() {
     clearCart,
     subtotal,
     tax,
+    serviceCharge,
     total,
+    taxRate,
+    serviceChargeRate,
   } = useCart(pendingSale, isTakeaway ? (saleIdParam ? `takeaway_${saleIdParam}` : 'takeaway_new') : tableId);
 
   // Cart quantity map for each product to show on product cards
@@ -169,6 +181,8 @@ export default function POS() {
         received_amount: variables.receivedAmount,
         change_amount: variables.changeAmount,
         payment_method: variables.paymentMethod,
+        tax: variables.tax,
+        serviceCharge: variables.serviceCharge,
       });
       setPaymentModalOpen(false);
       setInvoiceModalOpen(true);
@@ -181,7 +195,7 @@ export default function POS() {
 
   // Move Table Mutation
   const { mutate: handleMoveTable, isPending: isMovingTable } = useMutation({
-    mutationFn: (toTableId) =>
+    mutationFn: (toTableId: string) =>
       moveTable({
         fromTableId: tableId,
         toTableId,
@@ -194,6 +208,27 @@ export default function POS() {
       navigate(`/pos/${toTableId}`);
     },
     onError: (err) => toast.error('မအောင်မြင်ပါ', { description: err.message }),
+  });
+
+  // Merge Table Mutation
+  const { mutate: handleMergeTable, isPending: isMergingTable } = useMutation({
+    mutationFn: async (targetTableId: string) => {
+      const targetSale = await getPendingSaleByTable(targetTableId);
+      if (!targetSale) throw new Error('ပေါင်းစည်းမည့် စားပွဲတွင် အော်ဒါမရှိသေးပါ');
+      return mergeTables({
+        fromTableId: isTakeaway ? null : tableId,
+        toTableId: targetTableId,
+        fromSaleId: pendingSaleId,
+        toSaleId: targetSale.id,
+      });
+    },
+    onSuccess: (_, targetTableId) => {
+      invalidateAll();
+      toast.success('စားပွဲ ပေါင်းစည်းပြီးပါပြီ');
+      setMoveTableModalOpen(false);
+      navigate(`/pos/${targetTableId}`);
+    },
+    onError: (err) => toast.error('စားပွဲပေါင်းစည်း၍ မရပါ', { description: err.message }),
   });
 
   const { mutate: cancelOrder, isPending: isCancelling } = useMutation({
@@ -262,12 +297,20 @@ export default function POS() {
     navigate('/tables');
   };
 
-  if (productsLoading || pendingLoading) {
+  if (productsError) {
     return (
       <div className="flex h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <ErrorState
+          title="မီနူးပစ္စည်းများ ရယူ၍မရပါ"
+          message="ဆာဗာချိတ်ဆက်မှုကို စစ်ဆေးပြီး ပြန်လည်ကြိုးစားပါ။"
+          onRetry={refetchProducts}
+        />
       </div>
     );
+  }
+
+  if (productsLoading || pendingLoading) {
+    return <LoadingState type="spinner" />;
   }
 
   const tableLabel = isTakeaway
@@ -346,6 +389,34 @@ export default function POS() {
                 <span>ပြောင်းမည်</span>
               </Button>
             )}
+
+            {/* Print Pre-bill / Invoice Preview Button */}
+            {cart.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setCompletedSaleData({
+                    id: pendingSaleId || 'PRE-BILL',
+                    table: currentTable?.table_number || tableId,
+                    order_type: isTakeaway ? 'takeaway' : 'dine_in',
+                    items: cart,
+                    payment_method: 'cash',
+                    subtotal: subtotal,
+                    tax: tax,
+                    serviceCharge: serviceCharge,
+                    total_amount: total,
+                    expand: { table: currentTable },
+                  });
+                  setInvoiceModalOpen(true);
+                }}
+                className="flex items-center gap-1 rounded-xl h-10 px-2.5 text-xs font-bold border-gray-200 text-gray-700 hover:bg-gray-100"
+                title="ပြေစာ ကြည့်ရှု / ထုတ်မည်"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">ပြေစာစစ်မည်</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -363,13 +434,12 @@ export default function POS() {
           </div>
 
           {filteredProducts.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-56 text-gray-400">
-              <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-2 border border-gray-100">
-                <UtensilsCrossed className="h-6 w-6 text-gray-300" />
-              </div>
-              <p className="text-sm font-bold text-gray-600 mb-0.5">ရှာမတွေ့ပါ</p>
-              <p className="text-xs text-gray-400">အခြား စကားလုံး သို့မဟုတ် အမျိုးအစား စစ်ဆေးပါ</p>
-            </div>
+            <EmptyState
+              icon={UtensilsCrossed}
+              title="ရှာမတွေ့ပါ"
+              description="အခြား စကားလုံး သို့မဟုတ် အမျိုးအစား စစ်ဆေးပါ"
+              className="py-14 border-0 shadow-none"
+            />
           )}
         </div>
       </div>
@@ -380,6 +450,9 @@ export default function POS() {
         pendingSaleId={pendingSaleId}
         subtotal={subtotal}
         tax={tax}
+        serviceCharge={serviceCharge}
+        taxRate={taxRate}
+        serviceChargeRate={serviceChargeRate}
         total={total}
         isSaving={isSaving}
         isCheckingOut={isCheckingOut}
@@ -411,6 +484,7 @@ export default function POS() {
         onClose={() => setPaymentModalOpen(false)}
         subtotal={subtotal}
         tax={tax}
+        serviceCharge={serviceCharge}
         total={total}
         onConfirmPayment={checkout}
         isProcessing={isCheckingOut}
@@ -423,14 +497,16 @@ export default function POS() {
         sale={completedSaleData}
       />
 
-      {/* Move Table Modal */}
+      {/* Move & Merge Table Modal */}
       <MoveTableModal
         isOpen={moveTableModalOpen}
         onClose={() => setMoveTableModalOpen(false)}
         currentTableNumber={currentTable?.table_number || tableId}
         availableTables={availableTables}
+        occupiedTables={occupiedTables}
         onConfirmMove={handleMoveTable}
-        isLoading={isMovingTable}
+        onConfirmMerge={handleMergeTable}
+        isLoading={isMovingTable || isMergingTable}
       />
     </div>
   );

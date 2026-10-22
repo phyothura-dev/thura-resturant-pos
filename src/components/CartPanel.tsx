@@ -142,7 +142,10 @@ export default function CartPanel({
   cart,
   pendingSaleId,
   subtotal,
-  tax,
+  tax = 0,
+  serviceCharge = 0,
+  taxRate = 5,
+  serviceChargeRate = 5,
   total,
   isSaving,
   isCheckingOut,
@@ -155,7 +158,7 @@ export default function CartPanel({
   orderType = 'dine_in',
   onCancelOrder,
   isCancelling = false,
-}) {
+}: any) {
   const isEmpty = cart.length === 0;
 
   return (
@@ -216,12 +219,24 @@ export default function CartPanel({
               {subtotal.toLocaleString()} {APP_CONFIG.CURRENCY}
             </span>
           </div>
-          <div className="flex justify-between items-center text-xs text-gray-500">
-            <span>အခွန် ( ၅% )</span>
-            <span className="font-semibold text-gray-700">
-              {tax.toLocaleString()} {APP_CONFIG.CURRENCY}
-            </span>
-          </div>
+
+          {serviceCharge > 0 && (
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>ဝန်ဆောင်ခ ({serviceChargeRate}%)</span>
+              <span className="font-semibold text-blue-700">
+                +{serviceCharge.toLocaleString()} {APP_CONFIG.CURRENCY}
+              </span>
+            </div>
+          )}
+
+          {tax > 0 && (
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>ကုန်သွယ်လုပ်ငန်းခွန် ({taxRate}%)</span>
+              <span className="font-semibold text-emerald-700">
+                +{tax.toLocaleString()} {APP_CONFIG.CURRENCY}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between items-center">

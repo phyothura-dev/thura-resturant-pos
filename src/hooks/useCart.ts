@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { calculateTotals } from '../config/constants';
+import { getAppSettings, type AppSettings } from '../utils/settings';
 
 function getStorageKey(tableId) {
   return `pos_cart_${tableId}`;
@@ -119,11 +120,31 @@ export function useCart(pendingSale, tableId) {
     if (tableId) localStorage.removeItem(getStorageKey(tableId));
   }, [tableId]);
 
+  const [settings, setSettings] = useState<AppSettings>(() => getAppSettings());
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setSettings(getAppSettings());
+    };
+    window.addEventListener('app_settings_changed', handleSettingsChange);
+    return () => window.removeEventListener('app_settings_changed', handleSettingsChange);
+  }, []);
+
   const subtotal = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
   );
-  const { tax, total } = useMemo(() => calculateTotals(subtotal), [subtotal]);
+
+  const { tax, serviceCharge, total } = useMemo(
+    () =>
+      calculateTotals(subtotal, {
+        includeTax: settings.enableTax,
+        taxRate: settings.taxRate / 100,
+        includeServiceCharge: settings.enableServiceCharge,
+        serviceChargeRate: settings.serviceChargeRate / 100,
+      }),
+    [subtotal, settings]
+  );
 
   return {
     cart,
@@ -135,6 +156,13 @@ export function useCart(pendingSale, tableId) {
     clearCart,
     subtotal,
     tax,
+    serviceCharge,
     total,
+    taxRate: settings.taxRate,
+    serviceChargeRate: settings.serviceChargeRate,
+    enableTax: settings.enableTax,
+    enableServiceCharge: settings.enableServiceCharge,
+    includeTax: settings.enableTax,
+    includeServiceCharge: settings.enableServiceCharge,
   };
 }

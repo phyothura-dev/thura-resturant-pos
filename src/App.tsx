@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layout/MainLayout';
 import { Toaster } from './components/ui/Sonner';
-import { Loader2 } from 'lucide-react';
+import LoadingState from './components/ui/LoadingState';
 import { ROLES } from './config/constants';
 
 const Login = lazy(() => import('./pages/Login'));
@@ -16,13 +16,10 @@ const Users = lazy(() => import('./pages/Users'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Kitchen = lazy(() => import('./pages/Kitchen'));
 const DailyClosing = lazy(() => import('./pages/DailyClosing'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 function PageLoader() {
-  return (
-    <div className="flex h-[400px] w-full items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
+  return <LoadingState type="spinner" className="h-[400px] w-full" />;
 }
 
 function App() {
@@ -48,6 +45,7 @@ function App() {
                   <Route path="/users" element={<Users />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/daily-closing" element={<DailyClosing />} />
+                  <Route path="/settings" element={<Settings />} />
                 </Route>
               </Route>
             </Route>

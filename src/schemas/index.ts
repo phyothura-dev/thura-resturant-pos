@@ -23,6 +23,8 @@ export const paymentSchema = z.object({
   receivedAmount: z.number().finite().min(0),
   changeAmount: z.number().finite().min(0),
   finalTotal: z.number().finite().min(0),
+  serviceCharge: z.number().optional(),
+  tax: z.number().optional(),
 }).refine((payment) => payment.paymentMethod !== 'cash' || payment.receivedAmount >= payment.finalTotal, {
   message: 'ပေးထားသောငွေသည် ကျသင့်ငွေထက် မနည်းရပါ',
   path: ['receivedAmount'],

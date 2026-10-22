@@ -17,6 +17,7 @@ function PaymentModalContent({
   onClose,
   subtotal = 0,
   tax = 0,
+  serviceCharge = 0,
   total = 0,
   onConfirmPayment,
   isProcessing = false,
@@ -40,14 +41,14 @@ function PaymentModalContent({
   // Final total after discount
   const finalTotal = Math.max(0, total - discountAmount);
 
-  const handleDiscountPercent = (pct) => {
+  const handleDiscountPercent = (pct: number) => {
     setDiscountPercent(pct);
     setCustomDiscount('');
     const disc = Math.round((total * pct) / 100);
     setReceivedAmount(String(Math.max(0, total - disc)));
   };
 
-  const handleCustomDiscount = (val) => {
+  const handleCustomDiscount = (val: string) => {
     setCustomDiscount(val);
     setDiscountPercent(0);
     const disc = Math.min(total, Math.max(0, Number(val) || 0));
@@ -58,7 +59,7 @@ function PaymentModalContent({
   const changeAmount = Math.max(0, receivedNum - finalTotal);
   const isShort = paymentMethod === 'cash' && receivedNum < finalTotal;
 
-  const handleAddCash = (amount) => {
+  const handleAddCash = (amount: number) => {
     setReceivedAmount((prev) => String((Number(prev) || 0) + amount));
   };
 
@@ -68,13 +69,16 @@ function PaymentModalContent({
 
   const handleConfirm = () => {
     if (isShort) return;
-    const parsed = paymentSchema.safeParse({
+    const payload = {
       paymentMethod,
       discountAmount,
       receivedAmount: paymentMethod === 'cash' ? receivedNum : finalTotal,
       changeAmount: paymentMethod === 'cash' ? changeAmount : 0,
       finalTotal,
-    });
+      serviceCharge: serviceCharge > 0 ? serviceCharge : undefined,
+      tax: tax > 0 ? tax : undefined,
+    };
+    const parsed = paymentSchema.safeParse(payload);
     if (!parsed.success) return;
     onConfirmPayment(parsed.data);
   };
@@ -88,6 +92,14 @@ function PaymentModalContent({
             <span>ကျသင့်ငွေ (ကုန်ကျငွေ)</span>
             <span>{subtotal.toLocaleString()} {APP_CONFIG.CURRENCY}</span>
           </div>
+
+          {serviceCharge > 0 && (
+            <div className="flex justify-between items-center text-xs opacity-90 mb-1">
+              <span>ဝန်ဆောင်ခ ({APP_CONFIG.SERVICE_CHARGE_RATE * 100}%)</span>
+              <span>+ {serviceCharge.toLocaleString()} {APP_CONFIG.CURRENCY}</span>
+            </div>
+          )}
+
           {tax > 0 && (
             <div className="flex justify-between items-center text-xs opacity-90 mb-1">
               <span>အခွန် ({APP_CONFIG.TAX_RATE * 100}%)</span>
@@ -122,9 +134,9 @@ function PaymentModalContent({
                 key={pct}
                 type="button"
                 onClick={() => handleDiscountPercent(pct)}
-                className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                   discountPercent === pct && !customDiscount
-                    ? 'bg-primary text-white border-primary shadow-xs'
+                    ? 'bg-primary text-white border-primary shadow-2xs'
                     : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                 }`}
               >
@@ -161,9 +173,9 @@ function PaymentModalContent({
                   key={m.id}
                   type="button"
                   onClick={() => setPaymentMethod(m.id)}
-                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all ${
+                  className={`flex flex-col items-center justify-center p-2.5 rounded-xl border-2 transition-all cursor-pointer ${
                     isSelected
-                      ? `${m.color} ring-2 ring-primary/20 shadow-xs font-bold`
+                      ? `${m.color} ring-2 ring-primary/20 shadow-2xs font-bold`
                       : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
@@ -208,7 +220,7 @@ function PaymentModalContent({
                   key={amt}
                   type="button"
                   onClick={() => handleAddCash(amt)}
-                  className="px-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 text-[11px] font-bold transition-all"
+                  className="px-2 py-1 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 text-[11px] font-bold transition-all cursor-pointer"
                 >
                   +{amt.toLocaleString()}
                 </button>
@@ -239,7 +251,14 @@ function PaymentModalContent({
         ) : (
           <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-100 text-center text-xs text-blue-700 flex items-center justify-center gap-2">
             <QrCode className="h-4 w-4" />
-            <span>{paymentMethod === 'kpay' ? 'KBZPay' : paymentMethod === 'wavepay' ? 'WavePay' : 'Banking'} ဖြင့် ငွေလွှဲလက်ခံပြီးပါက အတည်ပြုပါ</span>
+            <span>
+              {paymentMethod === 'kpay'
+                ? 'KBZPay'
+                : paymentMethod === 'wavepay'
+                  ? 'WavePay'
+                  : 'Banking'}{' '}
+              ဖြင့် ငွေလွှဲလက်ခံပြီးပါက အတည်ပြုပါ
+            </span>
           </div>
         )}
 
@@ -270,7 +289,7 @@ function PaymentModalContent({
   );
 }
 
-export default function PaymentModal({ isOpen, onClose, ...props }) {
+export default function PaymentModal({ isOpen, onClose, ...props }: any) {
   if (!isOpen) return null;
   return <PaymentModalContent onClose={onClose} {...props} />;
 }

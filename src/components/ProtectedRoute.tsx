@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import LoadingState from './ui/LoadingState';
 import { toast } from 'sonner';
 import { useEffect, useRef } from 'react';
 
@@ -18,11 +18,7 @@ export default function ProtectedRoute({ allowedRoles }) {
   }, [session, isAuthorized]);
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingState type="spinner" className="h-screen" />;
   }
 
   if (!session) {
